@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+		PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+		"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ProductMapper">
+
+
+	<resultMap id="productSelectMap" type="product">
+		<result property="prodNo" column="prod_no" jdbcType="NUMERIC" />
+		<result property="prodName" column="prod_name"
+			jdbcType="VARCHAR" />
+		<result property="prodDetail" column="prod_detail"
+			jdbcType="VARCHAR" />
+		<result property="manuDate" column="manufacture_day"
+			jdbcType="VARCHAR" />
+		<result property="price" column="price" jdbcType="NUMERIC" />
+		<result property="fileName" column="image_file"
+			jdbcType="VARCHAR" />
+		<result property="regDate" column="reg_date" jdbcType="DATE" />
+		<result property="prodQuantity" column="prod_quantity"
+			jdbcType="NUMERIC" />
+	</resultMap>
+
+	<!-- SQL : INSERT -->
+	<insert id="addProduct" parameterType="product">
+		INSERT
+		INTO product
+		(prod_no,prod_name,prod_detail,manufacture_day,image_file,price,reg_date,prod_quantity)
+		VALUES
+		(seq_product_prod_no.NEXTVAL,#{prodName},#{prodDetail:VARCHAR},#{manuDate:VARCHAR},#{fileName:VARCHAR},#{price:NUMERIC},SYSDATE,#{prodQuantity:NUMERIC})
+		<!-- (#{prodNo},#{prodName},#{prodDetail:VARCHAR},#{manuDate:VARCHAR},#{fileName:VARCHAR},#{price:NUMERIC},SYSDATE,#{prodQuantity:NUMERIC}) -->
+	</insert>
+
+	<!-- SQL : SELECT ONE -->
+	<select id="getProduct" parameterType="integer"
+		resultMap="productSelectMap">
+		SELECT
+		prod_no ,prod_name ,prod_detail
+		,manufacture_day,price,image_file,reg_date
+		,prod_quantity
+		FROM product
+		WHERE prod_no=#{value}
+		ORDER BY
+		prod_no
+	</select>
+
+	<!-- SQL : UPDATE -->
+	<update id="updateProduct" parameterType="product">
+		UPDATE product
+		<set>
+			prod_name=#{prodName},
+			prod_detail=#{prodDetail:VARCHAR},
+			manufacture_day=#{manuDate:VARCHAR},
+			price=#{price:NUMERIC},
+			image_file=#{fileName:VARCHAR},
+			prod_quantity=#{prodQuantity:NUMERIC}
+		</set>
+		WHERE prod_no=#{prodNo}
+	</update>
+
+	<!-- SQL : SELECT LIST -->
+	<sql id="getProductListUnit">
+		SELECT
+		prod_no ,prod_name ,prod_detail
+		,manufacture_day,price,image_file,reg_date
+		,prod_quantity
+		FROM product
+		<trim prefix="where" prefixOverrides="AND||OR">
+			<if test="searchCondition != null">
+				<bind name="searchKeyword"
+					value="'%'+ _parameter.getSearchKeyword()+'%'" />
+				<if test=" searchCondition == 0 and searchKeyword !='' ">
+					prod_no like #{searchKeyword}
+				</if>
+				<if test=" searchCondition == 1 and searchKeyword !='' ">
+					prod_name like #{searchKeyword}
+				</if>
+				<if test=" searchCondition == 2 and searchKeyword !='' ">
+					price like #{searchKeyword}
+				</if>
+			</if>
+			<if test=" searchPriceLowerLimit != 0">
+				AND <![CDATA[price >= #{searchPriceLowerLimit}]]>
+			</if>
+			<if test=" searchPriceUpperLimit != 0">
+				AND <![CDATA[price <= #{searchPriceUpperLimit}]]>
+			</if>
+		</trim>
+		<if test=" searchOrderBy==null or searchOrderBy==0">
+			ORDER BY prod_no
+		</if>
+		<if test="searchOrderBy!=null">
+			<if test="searchOrderBy.equals('1-1')">
+				ORDER BY price ASC NULLS LAST, prod_no
+			</if>
+			<if test="searchOrderBy.equals('1-2')">
+				ORDER BY price DESC NULLS LAST, prod_no
+			</if>
+		</if>
+	</sql>
+
+	<select id="getProductList" parameterType="search"
+		resultMap="productSelectMap">
+		SELECT *
+		FROM ( SELECT inner_table.* , ROWNUM AS row_seq
+		FROM
+		(
+		<include refid="getProductListUnit" />
+		) inner_table
+		WHERE ROWNUM
+		<![CDATA[<=#{endRowNum} )]]>
+		WHERE row_seq BETWEEN
+		#{startRowNum} AND
+		#{endRowNum}
+	</select>
+
+
+	<!-- SQL : SELECT ROW Count -->
+	<select id="getTotalCount" parameterType="search"
+		resultType="integer">
+		SELECT COUNT(*)
+		FROM(
+		<include refid="getProductListUnit" />
+		) countTable
+	</select>
+
+	<select id="updateQuantity" parameterType="product">
+		UPDATE product
+		<set>
+			prod_quantity=#{prodQuantity}
+		</set>
+		<where>
+			prod_no=#{prodNo}
+		</where>
+	</select>
+
+</mapper>

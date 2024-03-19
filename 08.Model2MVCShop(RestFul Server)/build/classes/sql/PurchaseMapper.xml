@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+		PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+		"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="PurchaseMapper">
+
+
+	<resultMap id="purchaseSelectMap" type="purchase">
+		<result property="tranNo" column="tran_no" jdbcType="NUMERIC" />
+		<result property="purchaseProd.prodNo" column="prod_no"
+			jdbcType="NUMERIC" />
+		<result property="buyer.userId" column="buyer_id"
+			jdbcType="VARCHAR" />
+		<result property="paymentOption" column="payment_option"
+			jdbcType="CHAR" />
+		<result property="receiverName" column="receiver_name"
+			jdbcType="VARCHAR" />
+		<result property="receiverPhone" column="receiver_phone"
+			jdbcType="VARCHAR" />
+		<result property="divyAddr" column="demailaddr"
+			jdbcType="VARCHAR" />
+		<result property="divyRequest" column="dlvy_request"
+			jdbcType="VARCHAR" />
+		<result property="tranCode" column="tran_status_code"
+			jdbcType="CHAR" />
+		<result property="orderDate" column="order_data"
+			jdbcType="DATE" />
+		<result property="divyDate" column="dlvy_date" jdbcType="DATE" />
+		<result property="tranQuantity" column="tran_quantity"
+			jdbcType="NUMERIC" />
+	</resultMap>
+
+	<!-- SQL : INSERT -->
+	<insert id="addPurchase" parameterType="purchase">
+		INSERT
+		INTO
+		transaction(tran_no, prod_no,
+		buyer_id,payment_option,receiver_name,receiver_phone,demailaddr,dlvy_request,tran_status_code
+		,order_data,dlvy_date,tran_quantity)
+		<!-- VALUES (#{tranNo}, #{purchaseProd.prodNo}, #{buyer.userId}, #{paymentOption:CHAR}, 
+			#{receiverName:VARCHAR}, #{receiverPhone:VARCHAR},#{divyAddr:VARCHAR}, #{divyRequest:VARCHAR}, 
+			#{tranCode:CHAR}, SYSDATE, #{divyDate:DATE},#{tranQuantity:NUMERIC}) -->
+		VALUES (seq_transaction_tran_no.NEXTVAL, #{purchaseProd.prodNo},
+		#{buyer.userId},
+		#{paymentOption:CHAR},
+		#{receiverName:VARCHAR},
+		#{receiverPhone:VARCHAR},#{divyAddr:VARCHAR}, #{divyRequest:VARCHAR},
+		#{tranCode:CHAR}, SYSDATE, #{divyDate:DATE},#{tranQuantity:NUMERIC})
+	</insert>
+
+	<!-- SQL : SELECT ONE -->
+	<select id="getPurchase" parameterType="integer"
+		resultMap="purchaseSelectMap">
+		SELECT
+		tran_no, prod_no,
+		buyer_id,payment_option,receiver_name,receiver_phone,demailaddr,dlvy_request,tran_status_code
+		,order_data,dlvy_date,tran_quantity
+		FROM transaction
+		WHERE
+		tran_no=#{tranNo}
+		ORDER BY
+		tran_no
+	</select>
+
+	<!-- SQL : UPDATE -->
+	<update id="updatePurchase" parameterType="purchase">
+		UPDATE transaction
+		<set>
+			payment_option=#{paymentOption:CHAR} ,
+			receiver_name=#{receiverName:VARCHAR},
+			receiver_phone=#{receiverPhone:VARCHAR},
+			demailaddr=#{divyAddr:VARCHAR},
+			dlvy_request=#{divyRequest:VARCHAR},
+			dlvy_date=#{divyDate:DATE},
+			tran_quantity=#{tranQuantity}
+		</set>
+		WHERE tran_no=#{tranNo}
+	</update>
+
+	<!-- SQL : SELECT LIST -->
+	<sql id="getPurchaseListUnit">
+		SELECT
+		tran_no, prod_no,
+		buyer_id,payment_option,receiver_name,receiver_phone,demailaddr,dlvy_request,tran_status_code
+		,order_data,dlvy_date,tran_quantity
+		FROM transaction
+		WHERE
+		buyer_id=#{buyer_Id}
+		ORDER
+		BY
+		tran_no ASC NULLS LAST
+	</sql>
+
+	<select id="getPurchaseList" parameterType="map"
+		resultMap="purchaseSelectMap">
+		SELECT *
+		FROM ( SELECT inner_table.* , ROWNUM AS row_seq
+		FROM
+		(
+		<include refid="getPurchaseListUnit" />
+		) inner_table
+		WHERE ROWNUM
+		&lt;=#{search.endRowNum} )
+		WHERE row_seq
+		BETWEEN
+		#{search.startRowNum} AND
+		#{search.endRowNum}
+	</select>
+
+	<!-- SQL : SELECT ROW Count -->
+	<select id="getTotalCount" parameterType="map"
+		resultType="integer">
+		SELECT COUNT(*)
+		FROM(
+		<include refid="getPurchaseListUnit" />
+		) countTable
+	</select>
+
+	<update id="updateTranCode" parameterType="map">
+		UPDATE transaction
+		<trim prefix="set">
+			tran_status_code=#{tranCode}
+		</trim>
+		<!-- <if test="purchase.getPurchaseProd() != null"> WHERE prod_no=#{purchase.purchaseProd.prodNo} 
+			</if> -->
+		<if test="purchase.getTranNo() != null">
+			WHERE tran_no=#{purchase.tranNo}
+		</if>
+	</update>
+
+	<sql id="getDeliveryListUnit">
+		SELECT * FROM transaction
+		<trim prefix="where" prefixOverrides="AND||OR">
+			<if
+				test=" searchCondition != null">
+				<bind name="searchKeyword" value="'%' + _parameter.getSearchKeyword() + '%'"/>
+				<if test="searchCondition ==0 and searchKeyword !='' ">
+					buyer_id like #{searchKeyword}
+				</if>
+				<if test="searchCondition ==1 and searchKeyword !='' ">
+					receiver_name like #{searchKeyword}
+				</if>
+				<if test="searchCondition ==2 and searchKeyword !=''  ">
+					prod_no like #{searchKeyword}
+				</if>
+			</if>
+			<if test="listTranCode !=null and listTranCode.size()>0">
+				AND tran_status_code IN
+				<foreach collection="listTranCode" item="tranCode" open="("
+					separator="," close=")">
+					#{tranCode}
+				</foreach>
+			</if>
+		</trim>
+		<if test="searchOrderBy==null or searchOrderBy==0">
+			ORDER BY dlvy_date ASC NULLS LAST
+		</if>
+		<if test="searchOrderBy!=null">
+			<if test="searchOrderBy.equals('1-1')">
+				ORDER BY buyer_id ASC NULLS LAST, dlvy_date ASC
+			</if>
+			<if test="searchOrderBy.equals('1-2')">
+				ORDER BY tran_status_code ASC NULLS LAST, dlvy_date ASC
+			</if>
+		</if>
+	</sql>
+
+	<select id="getDeliveryList" parameterType="search"
+		resultMap="purchaseSelectMap">
+		SELECT *
+		FROM ( SELECT inner_table.* , ROWNUM AS row_seq
+		FROM
+		(
+		<include refid="getDeliveryListUnit" />
+		) inner_table
+		WHERE ROWNUM
+		&lt;=#{endRowNum} )
+		WHERE row_seq
+		BETWEEN
+		#{startRowNum} AND
+		#{endRowNum}
+	</select>
+
+	<select id="getTotalCountOfDeliveryList" parameterType="search"
+		resultType="integer">
+		SELECT COUNT(*)
+		FROM(
+		<include refid="getDeliveryListUnit" />
+		) countTable
+	</select>
+
+</mapper>

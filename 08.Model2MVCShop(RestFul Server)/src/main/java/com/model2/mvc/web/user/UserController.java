@@ -136,14 +136,13 @@ public class UserController {
 		
 		return "redirect:/index.jsp";
 	}
-	
-	
-	@RequestMapping( value="checkDuplication", method=RequestMethod.POST )
-	public String checkDuplication( @RequestParam("userId") String userId , Model model ) throws Exception{
-		
+
+	@RequestMapping(value = "checkDuplication", method = RequestMethod.POST)
+	public String checkDuplication(@RequestParam("userId") String userId, Model model) throws Exception {
+
 		System.out.println("/user/checkDuplication : POST");
-		//Business Logic
-		boolean result=userService.checkDuplication(userId);
+		// Business Logic
+		boolean result = userService.checkDuplication(userId);
 		// Model °ú View ¿¬°á
 		model.addAttribute("result", new Boolean(result));
 		model.addAttribute("userId", userId);
